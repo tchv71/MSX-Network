@@ -1,0 +1,19 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/src/.vs/msx-link/v16/.suo
+/src/.vs/msx-link/v16/Browse.VC.opendb
+/src/.vs/msx-link/v16/Browse.VC.db-wal
+/src/.vs/msx-link/v16/Browse.VC.db-shm
+/src/.vs/msx-link/v16/Browse.VC.db
+*.ipch
+*.obj
+*.log
+*.recipe
+*.iobj
+*.ipdb
+*.pch
+*.pdb
+*.tlog
+/src/x64/Release/msx-link.vcxproj.FileListAbsolute.txt

@@ -9,6 +9,7 @@
 #include <windows.h>
 #include <assert.h>
 #include <sys/stat.h>
+#include <limits.h>
 
 //#include "MsxSerialPort.h"
 #include "MsxIpPort.h"
@@ -31,7 +32,7 @@ unsigned char ROM2BIN_startCode[] =
 {
 /*
 	commented because this code section is needed only for
-    disk drive switching off, but we run on a diskless MSX
+		disk drive switching off, but we run on a diskless MSX
 
 	0xFB,				// ei
 	0x76,				// halt
@@ -116,7 +117,7 @@ class MSXhandle
 			}
 			for(; i < 11; FCB[ ++i ] = ' ');
 			// and extension
-			int n = strlen(name);
+			size_t n = strlen(name);
 			for(i = 0; i < 4; i++)
 				FCB[ 12 - i ] = toupper(name[n - i]);
 		}
@@ -208,7 +209,7 @@ public:
 
 	bool write()
 	{
-		return write((const unsigned char *)txbuf.c_str(), txbuf.size());
+		return write((const unsigned char *)txbuf.c_str(), (int)txbuf.size());
 	}
 
 	bool write_wait( const unsigned char *buf, int size, const char *msg = "command" )
@@ -228,7 +229,7 @@ public:
 
 	bool write_wait( const char *msg = "command" )
 	{
-		return write_wait((const unsigned char *)txbuf.c_str(), txbuf.size(),msg);
+		return write_wait((const unsigned char *)txbuf.c_str(), (int)txbuf.size(),msg);
 	}
 
 	void printProgress(int pkt)
@@ -321,12 +322,12 @@ public:
 	{
 		if( studentNo == 127 )
 		{
-	 		Sleep( delay );
+			Sleep( delay );
 			return true;
 		}
 
 		unsigned char lbuf[MAXPKTSIZE],
-					  *buf = rbuf ? rbuf : lbuf;
+						*buf = rbuf ? rbuf : lbuf;
 
 		if( verbose > 2 ) printf("WaitRx read: ");
 		for(int i=0; i < MAXPKTSIZE;)
@@ -374,7 +375,7 @@ public:
 
 	unsigned char getByte( unsigned char *p )
 	{
-        return (p[1] + (p[0] ? 128 : 0));
+				return (p[1] + (p[0] ? 128 : 0));
 	}
 
 	unsigned int getWord( unsigned char *p )
@@ -392,7 +393,7 @@ public:
 		setWord( &hdr[7], start );
 		setWord( &hdr[11], end );
 
-	    if( verbose ) msx->dump( hdr, sizeof(hdr), "\nHeader: ", true);
+			if( verbose ) msx->dump( hdr, sizeof(hdr), "\nHeader: ", true);
 
 		if(!write_wait( hdr, sizeof(hdr), "SendHeader"))
 		{
@@ -504,8 +505,8 @@ public:
 		setSrcDst( hdr );
 		setWord( &hdr[7], len );
 
-	    if (verbose)
-	    {
+			if (verbose)
+			{
 			msx->dump( hdr, sizeof(hdr), "\nHeader: ");
 			printf ("\nData: ");
 		}
@@ -546,7 +547,8 @@ public:
 			return false;
 		}
 		bool waitRx = false;
-		FILE *outfile = fopen( name, "wb" );
+		FILE *outfile = nullptr;
+		errno_t err = fopen_s(&outfile, name, "wb" );
 		fputc( 0xFF, outfile);
 		unsigned int size;
 		int pkt = 0;
@@ -669,7 +671,7 @@ public:
 	bool Run( unsigned short run, const char *runstr = runcom )
 	{
 		char string[MAX_COMM_LEN+1];	//размер строки не должен быть превышен
-		sprintf(string, runstr, run);				//размер строки не изменится
+		sprintf_s(string, runstr, run);				//размер строки не изменится
 		printf("Run command: '%s'\n", string);
 		return SendCommand( string );
 	}
@@ -680,16 +682,18 @@ public:
 		//							0	  1		2	  3		4	  5		6	  7		8	  9		10
 		setSrcDst( hdr );
 		hdr[6] = cmdNo;
-		int len = strlen(cmd);
+		size_t len = strlen(cmd);
+		if (len>=USHRT_MAX)
+			return false;
 		if( len > maxLen )
 		{
-			printf("Unsuported command|message length %d > %d bytes", len, maxLen);
+			printf("Unsuported command|message length %d > %d bytes", (int)len, maxLen);
 			return false;
 		}
-		setWord( &hdr[7], len );
+		setWord( &hdr[7], (unsigned short)len );
 		if( verbose ) msx->dump( hdr, sizeof(hdr), "\nHeader: ", true );
 		setHeader(hdr, sizeof(hdr));
-		addBufEnd((unsigned char *)cmd, len );
+		addBufEnd((unsigned char *)cmd, (unsigned short)len );
 		return write_wait( msg );
 	}
 
@@ -774,14 +778,14 @@ public:
 		if(verbose) printf("Got re: NET_CREATE_FILE.\n");
 
 		// Reading the file sector-by-sector and writing them onto the net disk
-		printf("\nNumber of sectors to send: %d\n", (size / sizeof(Sector)) + ((size % sizeof(Sector))?1:0));
-		int len;
+		printf("\nNumber of sectors to send: %d\n", int((size / sizeof(Sector)) + ((size % sizeof(Sector))?1:0)));
+		size_t len;
 		for(int sectNo = 0; !feof(infile); sectNo++)
 		{
 			if((len = fread(Sector, 1, sizeof(Sector), infile)) == 0 )
 				break;
 
-   			SendPacket( NET_MASTER_DATA, Sector, sizeof(Sector) );
+				SendPacket( NET_MASTER_DATA, Sector, sizeof(Sector) );
 			SendPacket( NET_WRITE_FILE, (unsigned char *)&RxData, sizeof(RxData));
 
 			if( verbose )
@@ -897,43 +901,43 @@ int main(int argc, char **argv)
 			fileNamePointer[filesNumber++] = argv[i];
 		}
 	}
-    if(err || argc <= 1)
-    {
-            printf("\n\
-  MSX-Link v1.2.20190917,  Copyright (c) 2019,   <<Aoidsoft>> Co. (adu@aoidsoft.com)\n\
-  Command line utility for the Main-computer functions in a local network KYBT2(MSX2ru):\n\
-                                                                                   PC  <--->>>  KYBT2(MSX2ru)\n\
-  Usage:  msx-link.exe [-p <Com|Port>Num] [-s StudentNo] [-<key>...] [_<command>...]  [file1] [file2] [...fileN]\n\
-        [file1] [file2] [...fileN] - files for binary send (auto supported formats: BAS, BIN, ROM[8|16|32])\n\
-    -key(s):\n\
-        i <hst>: Ethernet address of the Host-gate to MSX-net,    no default\n\
-        p <C>  : Connect to COM|IP-port number <C>,               default value  1 (treat as IP-port whith -i)\n\
-        s <S>  : Work with 'Student' number <S>,                  default value -1:\n\
-                   -1  - to all\n\
-                    0  - to 'Teacher'                             (for <-T>est mode)\n\
-                 1-15  - to <S>tudent number\n\
-        c <cmd>        : Send Basic-command <cmd> to <S>tudent(s) (37 symbols limit) [like '_SNDCMD  <cmd> ']\n\
-        m <msg>        : Send message <msg> to <S>tudent(s)       (56 symbols limit) [like '_MESSAGE <msg> ']\n\
-        C              : Send '_cpm' to <S>tudent(s) for switching into CPM OS\n\
-        S              : Send file(s) to CPM net-disk             (should be use with|after -C key)\n\
-        T              : Test mode - dump&reply                   (RX & TX lines should swapped!)\n\
-        P              : Line test - send \"7\" in a circle\n\
-        v [0-2]        : Verbose mode with selected logging lvl,  default value 0\n\
-        h|H|?          : This help\n\
-    _command(s):\n\
-        _recv   <file> : Recv Basic-program from <S>tudent into the <file>           [like '_RECEIVE <file>']\n\
-        _run    [rowN] : Run  Basic-program on <S>tudent(s) with optional start rowN [like '_RUN     <rowN>']\n\
-        _stop          : Stop Basic-program on <S>tudent(s)                          [like '_STOP'          ]\n\
-        _sndcmd  <cmd> : Send Basic-command <cmd> to <S>tudent(s) (37 symbols limit) [like '_SNDCMD  <cmd> ']\n\
-        _message <msg> : Send message <msg> to <S>tudent(s) (56 symbols limit)       [like '_MESSAGE <msg> ']\n\
-        _cpm           : Send '_cpm' to <S>tudent(s) for switching into CPM OS\n\
+		if(err || argc <= 1)
+		{
+						printf("\n\
+	MSX-Link v1.2.20190917,  Copyright (c) 2019,   <<Aoidsoft>> Co. (adu@aoidsoft.com)\n\
+	Command line utility for the Main-computer functions in a local network KYBT2(MSX2ru):\n\
+																																									 PC  <--->>>  KYBT2(MSX2ru)\n\
+	Usage:  msx-link.exe [-p <Com|Port>Num] [-s StudentNo] [-<key>...] [_<command>...]  [file1] [file2] [...fileN]\n\
+				[file1] [file2] [...fileN] - files for binary send (auto supported formats: BAS, BIN, ROM[8|16|32])\n\
+		-key(s):\n\
+				i <hst>: Ethernet address of the Host-gate to MSX-net,    no default\n\
+				p <C>  : Connect to COM|IP-port number <C>,               default value  1 (treat as IP-port whith -i)\n\
+				s <S>  : Work with 'Student' number <S>,                  default value -1:\n\
+									 -1  - to all\n\
+										0  - to 'Teacher'                             (for <-T>est mode)\n\
+								 1-15  - to <S>tudent number\n\
+				c <cmd>        : Send Basic-command <cmd> to <S>tudent(s) (37 symbols limit) [like '_SNDCMD  <cmd> ']\n\
+				m <msg>        : Send message <msg> to <S>tudent(s)       (56 symbols limit) [like '_MESSAGE <msg> ']\n\
+				C              : Send '_cpm' to <S>tudent(s) for switching into CPM OS\n\
+				S              : Send file(s) to CPM net-disk             (should be use with|after -C key)\n\
+				T              : Test mode - dump&reply                   (RX & TX lines should swapped!)\n\
+				P              : Line test - send \"7\" in a circle\n\
+				v [0-2]        : Verbose mode with selected logging lvl,  default value 0\n\
+				h|H|?          : This help\n\
+		_command(s):\n\
+				_recv   <file> : Recv Basic-program from <S>tudent into the <file>           [like '_RECEIVE <file>']\n\
+				_run    [rowN] : Run  Basic-program on <S>tudent(s) with optional start rowN [like '_RUN     <rowN>']\n\
+				_stop          : Stop Basic-program on <S>tudent(s)                          [like '_STOP'          ]\n\
+				_sndcmd  <cmd> : Send Basic-command <cmd> to <S>tudent(s) (37 symbols limit) [like '_SNDCMD  <cmd> ']\n\
+				_message <msg> : Send message <msg> to <S>tudent(s) (56 symbols limit)       [like '_MESSAGE <msg> ']\n\
+				_cpm           : Send '_cpm' to <S>tudent(s) for switching into CPM OS\n\
 \n\
-  Example:\n\
+	Example:\n\
 %s -p 0 -m \"Hi all!\"\n"
 //        _send   <file> : Send Basic-file to <S>tudent(s) (file must be MSX Basic fmt)[like '_SEND    <file>']\n
 ,argv[0]);
-            return 1;
-    }
+						return 1;
+		}
 	char s[2] = {0,0};
 	if (studentNo < 0)
 	{
@@ -999,12 +1003,13 @@ int main(int argc, char **argv)
 		unsigned char binBuf[SIZE32K];
 		struct _stat stat_p;
 		int result = _stat( fileNamePointer[fileIdx], &stat_p );
-	    FILE *infile = fopen( fileNamePointer[fileIdx], "rb" );
-		if (infile == NULL)
+		FILE *infile = nullptr;
+		errno_t err = fopen_s(&infile, fileNamePointer[fileIdx], "rb" );
+		if (infile == nullptr || err != 0)
 		{
 			printf ("\nError: cannot open file %s\n", fileNamePointer[fileIdx]);
 			break;
-	    }
+			}
 
 		if( sendFile )					// --- Send file to CPM net-disk ---
 		{
@@ -1098,7 +1103,7 @@ int main(int argc, char **argv)
 			{
 				fread (&binBuf, RS, 1, infile);
 				memcpy(&binBuf[RS], ROM2BIN_startCode, sizeof(ROM2BIN_startCode));
-				if( i == 1 )													//First page
+				if( i == 1 )														//First page
 					binBuf[0] = 0;												//	destroy "AB" signature so it won't restart ROM on reboot
 				if( i < parts )													//Not Last page - return to load
 					binBuf[SIZE16K + sizeof(ROM2BIN_startCode) - 9] = 0x00;		//	replace last Z80 command "jp hl" with "nop"
@@ -1155,5 +1160,5 @@ int main(int argc, char **argv)
 
 	Sleep(1000);
 
-    return 0;
+	return 0;
 }
