@@ -687,7 +687,7 @@ public:
 			return false;
 		if( len > maxLen )
 		{
-			printf("Unsuported command|message length %d > %d bytes", (int)len, maxLen);
+			printf("Unsupported command|message length %d > %d bytes", (int)len, maxLen);
 			return false;
 		}
 		setWord( &hdr[7], (unsigned short)len );
@@ -1021,7 +1021,8 @@ int main(int argc, char **argv)
 			printf("Send file<%s> complete\n",fileNamePointer[fileIdx]);
 		}
 
-		fread( &ch, 1, 1, infile );	//read the first byte that can contain the file type
+		ch =  0;
+		size_t sz = fread( &ch, 1, 1, infile );	//read the first byte that can contain the file type
 
 		//if( sendBas )					// --- Use special routine for sending Basic-file in the internal format ---
 		//{
@@ -1033,7 +1034,8 @@ int main(int argc, char **argv)
 		//	printf("Send basic file<%s> complete\n",fileNamePointer[fileIdx]);
 		//	break;
 		//}
-
+		if (sz == 0)
+			return 0;
 		if( ch == 0xfe )				//                 --- BINARY FILE ---
 		{
 			fread( &start, 2, 1, infile );
@@ -1094,7 +1096,7 @@ int main(int argc, char **argv)
 			printf("%u x 16K ROM parts\n",parts);
 			if( parts > 2 )
 			{
-				puts("Suported ROM size is 2x16Kb pages");
+				puts("Supported ROM size is 2x16Kb pages");
 				return 1;
 			}
 
