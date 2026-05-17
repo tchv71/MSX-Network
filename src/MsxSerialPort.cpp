@@ -60,7 +60,8 @@ bool MsxSerialPort::open(int portNum)
 			dcbSerialParameters.ByteSize = MSX_RYTESIZE;
 			dcbSerialParameters.StopBits = MSX_STOPBITS;	//ONESTOPBIT;
 			dcbSerialParameters.Parity = MSX_PARITY;	//NOPARITY;
-			//dcbSerialParameters.fDtrControl = DTR_CONTROL_ENABLE;
+			//dcbSerialParameters.fDtrControl = DTR_CONTROL_DISABLE/*DTR_CONTROL_ENABLE*/;
+			//dcbSerialParameters.fRtsControl = RTS_CONTROL_DISABLE;
 
 			if (!SetCommState(handler, &dcbSerialParameters))
 			{
@@ -93,7 +94,7 @@ int MsxSerialPort::read(char* buffer, unsigned int size, bool verbose)
 
 	if (status.cbInQue > 0)
 	{
-		toRead = status.cbInQue > size ? size : status.cbInQue;
+		toRead = size ? size : status.cbInQue;
 		memset(buffer, 0, size);
 
 		if (ReadFile(handler, buffer, toRead, &bytesRead, NULL) && bytesRead)

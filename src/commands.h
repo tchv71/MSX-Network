@@ -9,6 +9,7 @@
 #define NET_CLOSE_FILE      0x20
 #define NET_WRITE_FILE      0x25
 #define NET_CREATE_FILE     0x26
+#define NET_ERASE_FILE      0x23
 #define NET_MASTER_DATA     0x2c
 #define NET_MASTER_DATA2    0x2d
 
