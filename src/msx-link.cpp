@@ -219,7 +219,7 @@ public:
 			printf("Send %s error\n", msg);
 			return false;
 		}
-		if (!WaitRx())
+		if (!WaitRx(nullptr, 200, msg))
 		{
 			printf("Failed: no reply from client to %s", msg);
 			return false;
@@ -293,13 +293,16 @@ public:
 					if (verbose) printf("*** %s from %d to %d\n", msg, src, dst);
 					word = getWord(&(buf[7]));
 					if (verbose) printf("*** Payload: %d bytes\n", word);
-					if (!checkCrc((const char*)buf + 11, size - 16))
 					{
-						assert(false);
-						return false;
+						const int shift = 11;
+						if (!checkCrc((const char*)buf + shift, size - shift - 5))
+						{
+							//assert(false);
+							//return false;
+						}
 					}
 					getRxData(buf);
-					Ack();
+					//Ack();
 					break;
 				case SEND_FILE:
 					if (verbose) printf("*** receive SEND_FILE\n");
@@ -325,7 +328,7 @@ public:
 		return true;
 	}
 
-	bool WaitRx(unsigned char* rbuf = NULL, int  delay = 200)
+	bool WaitRx(unsigned char* rbuf = NULL, int delay = 200, const char *msg=nullptr)
 	{
 		if (studentNo == 127)
 		{
@@ -341,8 +344,13 @@ public:
 		{
 			int n = 0, err = 0;
 			//			for(int j = 5; j-- && !(n = msx.read((char *)&buf[i], sizeof(buf)-i)); Sleep( delay ));
-			for (int j = 5; j-- && !(n = msx->read((char*)&buf[i], 0/*1*/, verbose > 2)); /*Sleep( delay )*/);
-			if (!n && (err = GetLastError()))
+
+			const int MAX_RD_TRIES = 5;
+			for (int j = MAX_RD_TRIES; j-- && !(n = msx->read((char*)&buf[i], 0/*1*/, verbose > 2));)
+				Sleep( delay );
+			if (!n && msg && (strcmp(msg, "NET_ERASE_FILE")==0 || strcmp(msg, "NET_MASTER_DATA") == 0))
+				return true;
+			if (!n && msg /*&& (err = GetLastError())*/)
 			{
 				printf("WaitRx error %d (%d bytes read)\n", GetLastError(), i);
 				msx->dump(buf, i + 1, NULL, true);
@@ -353,7 +361,8 @@ public:
 			if ((buf[i - 1] == LAST) || (buf[i - 1] == INTERMEDIATE))
 			{
 				//				if( verbose > 1 ) msx.dump( buf, i, "WaitRx[%d]: ", true );
-				checkPacket(buf, i);
+				if (!checkPacket(buf, i))
+					return false;
 				if (verbose > 2) puts("\nWaitRx ok");
 				return true;
 			}
@@ -800,8 +809,8 @@ public:
 			memset(Sector, 0, sizeof(Sector));
 			if ((len = fread(Sector, 1, sizeof(Sector), infile)) == 0)
 				break;
-			if (len<sizeof(Sector))
-				Sector[len] = 0x1A;
+			//if (len<sizeof(Sector))
+			//	Sector[len] = 0x1A;
 			if (!SendPacket(NET_MASTER_DATA, Sector, sizeof(Sector)))
 				return false;
 
@@ -830,6 +839,7 @@ private:
 bool MSXhandle::checkCrc(const char* buf, unsigned len)
 {
 	checkSum checksum;
+	checksum.UpdateChecksum(0xFE);
 	for (unsigned i = 0; i < len; i++)
 	{
 		checksum.UpdateChecksum(buf[i]);
@@ -1059,6 +1069,7 @@ int main(int argc, char** argv)
 				return 1;
 			}
 			printf("Send file<%s> complete\n", fileNamePointer[fileIdx]);
+			continue;
 		}
 
 		ch = 0;

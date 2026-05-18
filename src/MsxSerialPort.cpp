@@ -57,12 +57,16 @@ bool MsxSerialPort::open(int portNum)
 		else
 		{
 			dcbSerialParameters.BaudRate = MSX_BAUDRATE;
+			dcbSerialParameters.fBinary = TRUE;
 			dcbSerialParameters.ByteSize = MSX_RYTESIZE;
 			dcbSerialParameters.StopBits = MSX_STOPBITS;	//ONESTOPBIT;
+			dcbSerialParameters.fParity = TRUE;
 			dcbSerialParameters.Parity = MSX_PARITY;	//NOPARITY;
-			//dcbSerialParameters.fDtrControl = DTR_CONTROL_DISABLE/*DTR_CONTROL_ENABLE*/;
-			//dcbSerialParameters.fRtsControl = RTS_CONTROL_DISABLE;
-
+			dcbSerialParameters.fDtrControl = DTR_CONTROL_DISABLE/*DTR_CONTROL_ENABLE*/;
+			dcbSerialParameters.fRtsControl = RTS_CONTROL_DISABLE;
+			dcbSerialParameters.fOutxCtsFlow = FALSE;
+			dcbSerialParameters.fOutxDsrFlow = FALSE;
+			dcbSerialParameters.fDsrSensitivity = FALSE;
 			if (!SetCommState(handler, &dcbSerialParameters))
 			{
 				puts("MsxSerialPort create WARNING: could not set serial port parameters");

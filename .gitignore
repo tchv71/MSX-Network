@@ -22,3 +22,9 @@
 /src/DDT.COM
 /src/KVALLEY.BIN
 /src/x64/Debug/msxnet.exe
+/1.txt
+*.COM
+/memory.ram
+*.exe
+*.ram
+/src/1.txt
