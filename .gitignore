@@ -28,3 +28,5 @@
 *.exe
 *.ram
 /src/1.txt
+/SendCrc/x64/Debug
+/spy_bootstrap.bin
